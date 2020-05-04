@@ -1,0 +1,44 @@
+version: '3.7'
+services:
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - '4566-4597:4566-4597'
+      - '8080:8080'
+    environment:
+      SERVICES: 's3'
+      PORT_WEB_UI: 8080
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+    - 'localstack_data:/tmp/localstack'
+    - '/var/run/docker.sock:/var/run/docker.sock'
+    networks:
+      - stack
+    healthcheck:
+      test: netstat -tulan | grep -i listen | grep 4566
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  aws_cli:
+    image: amazon/aws-cli:2.0.10
+    command: --endpoint-url=http://localstack:4566 s3 mb s3://local-bucket
+    secrets:
+      - source: aws_credentials
+        target: /root/.aws/credentials
+      - source: aws_config
+        target: /root/.aws/config
+    networks:
+      - stack
+    depends_on:
+      - localstack
+    restart: on-failure
+volumes:
+  localstack_data: {}
+  aws_cli_data: {}
+secrets:
+  aws_credentials:
+    file: ./aws/credentials
+  aws_config:
+    file: ./aws/config
+networks:
+  stack: {}
