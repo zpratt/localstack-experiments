@@ -104,3 +104,8 @@ dist
 .tern-port
 
 .idea
+.terraform
+*.tfstate
+*.backup
+*.info
+*.zip

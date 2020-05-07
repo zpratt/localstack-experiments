@@ -2,11 +2,12 @@ version: '3.7'
 services:
   localstack:
     image: localstack/localstack:latest
+    container_name: localstack
     ports:
       - '4566-4597:4566-4597'
       - '8080:8080'
     environment:
-      SERVICES: 's3'
+      SERVICES: 'apigateway, lambda, s3'
       PORT_WEB_UI: 8080
       DOCKER_HOST: unix:///var/run/docker.sock
     volumes:
@@ -21,6 +22,7 @@ services:
       retries: 5
   aws_cli:
     image: amazon/aws-cli:2.0.10
+    container_name: aws_cli
     command: --endpoint-url=http://localstack:4566 s3 mb s3://local-bucket
     secrets:
       - source: aws_credentials
@@ -32,6 +34,47 @@ services:
     depends_on:
       - localstack
     restart: on-failure
+    healthcheck:
+      test: --endpoint-url=http://localstack:4566 s3 ls s3://local-bucket
+      interval: 30s
+      timeout: 10s
+      retries: 5
+  tf-init:
+    image: hashicorp/terraform:0.12.24
+    container_name: tf-init
+    command: init
+    networks:
+      - stack
+    depends_on:
+      - localstack
+      - aws_cli
+    restart: on-failure
+    secrets:
+      - source: aws_credentials
+        target: /root/.aws/credentials
+      - source: aws_config
+        target: /root/.aws/config
+    working_dir: /root/terraform/local
+    volumes:
+    - './terraform:/root/terraform'
+  tf-apply:
+    image: hashicorp/terraform:0.12.24
+    container_name: tf-apply
+    command: apply -auto-approve
+    networks:
+      - stack
+    depends_on:
+      - tf-init
+    restart: on-failure
+    secrets:
+      - source: aws_credentials
+        target: /root/.aws/credentials
+      - source: aws_config
+        target: /root/.aws/config
+    working_dir: /root/terraform/local
+    volumes:
+    - './terraform:/root/terraform'
+    - './index.js:/root/terraform/index.js'
 volumes:
   localstack_data: {}
   aws_cli_data: {}
