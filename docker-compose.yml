@@ -74,7 +74,7 @@ services:
     working_dir: /root/terraform/local
     volumes:
     - './terraform:/root/terraform'
-    - './index.js:/root/terraform/index.js'
+    - './src:/root/src'
 volumes:
   localstack_data: {}
   aws_cli_data: {}
